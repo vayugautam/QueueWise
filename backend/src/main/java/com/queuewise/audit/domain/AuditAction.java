@@ -1,0 +1,16 @@
+package com.queuewise.audit.domain;
+
+public enum AuditAction {
+    USER_REGISTERED,
+    LOGIN,
+    APPOINTMENT_CREATED,
+    APPOINTMENT_CANCELLED,
+    TOKEN_CREATED,
+    TOKEN_CALLED,
+    TOKEN_COMPLETED,
+    TOKEN_SKIPPED,
+    COUNTER_PAUSED,
+    COUNTER_RESUMED,
+    SERVICE_CREATED,
+    SERVICE_UPDATED
+}

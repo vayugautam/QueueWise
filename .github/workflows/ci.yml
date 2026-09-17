@@ -1,0 +1,107 @@
+name: QueueWise CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend tests and build
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: queuewise_test
+          POSTGRES_USER: queuewise
+          POSTGRES_PASSWORD: queuewise_test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U queuewise -d queuewise_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: Generate per-run JWT test secret
+        id: test_secret
+        run: echo "value=$(openssl rand -base64 32)" >> "$GITHUB_OUTPUT"
+
+      - name: Execute backend tests
+        env:
+          SPRING_PROFILES_ACTIVE: test
+          DATABASE_URL: jdbc:postgresql://localhost:5432/queuewise_test
+          DATABASE_USERNAME: queuewise
+          DATABASE_PASSWORD: queuewise_test_password
+          JWT_ISSUER: queuewise-api-test
+          JWT_AUDIENCE: queuewise-web-test
+          JWT_SECRET: ${{ steps.test_secret.outputs.value }}
+        run: mvn --batch-mode --no-transfer-progress test
+
+      - name: Build backend
+        run: mvn --batch-mode --no-transfer-progress -DskipTests package
+
+  frontend:
+    name: Frontend install and build
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build frontend
+        env:
+          VITE_API_BASE_URL: http://localhost:8080/api/v1
+          VITE_WEBSOCKET_URL: ws://localhost:8080/ws
+        run: npm run build
+
+  report:
+    name: Report failures
+    if: ${{ failure() }}
+    needs:
+      - backend
+      - frontend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add failure summary
+        run: |
+          {
+            echo "## QueueWise CI failure"
+            echo ""
+            echo "One or more backend or frontend CI jobs failed. Review the failed job logs above."
+          } >> "$GITHUB_STEP_SUMMARY"
