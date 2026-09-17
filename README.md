@@ -222,9 +222,11 @@ flowchart LR
     Command[REST lifecycle command] --> Tx[PostgreSQL transaction]
     Tx --> Commit[Commit token/counter state]
     Commit --> Publisher[QueueUpdatePublisher]
-    Publisher --> ServiceTopic[/topic/.../queues/{serviceId}]
-    Publisher --> CounterTopic[/topic/counters/{counterId}]
-    Publisher --> UserTopic[/user/queue/token-updates]
+
+    Publisher --> ServiceTopic["/topic/.../queues/{serviceId}"]
+    Publisher --> CounterTopic["/topic/counters/{counterId}"]
+    Publisher --> UserTopic["/user/queue/token-updates"]
+
     ServiceTopic --> Staff[Authorized staff]
     CounterTopic --> CounterStaff[Assigned counter staff]
     UserTopic --> Customer[Token owner]
